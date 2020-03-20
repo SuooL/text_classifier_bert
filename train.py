@@ -342,6 +342,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False):
             examples,
             tokenizer,
             label_list=label_list,
+            label_name=args.label_name,
             max_length=args.max_seq_length,
             pad_on_left=bool(args.model_type in ["xlnet"]),  # pad on the left for xlnet
             pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
@@ -397,19 +398,30 @@ def main():
         required=True,
         help="The output directory where the model predictions and checkpoints will be written.",
     )
+    parser.add_argument(
+        "--label_name",
+        default=None,
+        type=str,
+        required=True,
+        help="The name for input label .",
+    )
 
      # Other parameters
     parser.add_argument(
         "--config_name", default="", type=str, help="Pretrained config name or path if not the same as model_name",
     )
-
+    parser.add_argument(
+        "--tokenizer_name",
+        default="",
+        type=str,
+        help="Pretrained tokenizer name or path if not the same as model_name",
+    )
     parser.add_argument(
         "--cache_dir",
         default="",
         type=str,
         help="Where do you want to store the pre-trained models downloaded from s3",
     )
-
     parser.add_argument(
         "--max_seq_length",
         default=256,
@@ -417,7 +429,6 @@ def main():
         help="The maximum total input sequence length after tokenization. Sequences longer "
         "than this will be truncated, sequences shorter will be padded.",
     )
-    
     parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
     parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
     parser.add_argument(

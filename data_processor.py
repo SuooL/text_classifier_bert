@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 def convert_examples_to_features(
     examples,
     tokenizer,
+    label_name=None,
     max_length=512,
     label_list=None,
     pad_on_left=False,
@@ -83,10 +84,12 @@ def convert_examples_to_features(
         )
 
 
+        if example.label == label_name:
+            continue
         try:
             label = label_map[example.label]
         except KeyError as e:
-            raise KeyError("Label name error:", e)
+            raise KeyError("Label_name can't be None")
 
 
         if ex_index < 5:

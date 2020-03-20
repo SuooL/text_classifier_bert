@@ -6,6 +6,8 @@ import os
 import time
 import random
 from importlib import import_module
+import sys 
+sys.path.append("..") 
 
 import numpy as np
 import torch
@@ -13,8 +15,9 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, Tenso
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from torch.utils.tensorboard import SummaryWriter
-from data_processor import convert_examples_to_features
+from data_processor import Processor, convert_examples_to_features
 from sklearn.metrics import matthews_corrcoef, f1_score, accuracy_score
+from transformers import glue_compute_metrics as compute_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +38,6 @@ from transformers import (
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
 )
-
-from transformers import glue_compute_metrics as compute_metrics
-from data_processor import  Processor
 
 def set_seed(args):
     random.seed(args.seed)
@@ -145,10 +145,7 @@ def train(args, train_dataset, model, tokenizer):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-            if args.model_type != "distilbert":
-                inputs["token_type_ids"] = (
-                    batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
-                )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+            inputs["token_type_ids"] = batch[2]
             outputs = model(**inputs)
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
 
@@ -194,15 +191,9 @@ def train(args, train_dataset, model, tokenizer):
                     output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
-                    model_to_save = (
-                        model.module if hasattr(model, "module") else model
-                    )  # Take care of distributed/parallel training
-                    model_to_save.save_pretrained(output_dir)
-                    tokenizer.save_pretrained(output_dir)
 
-                    torch.save(args, os.path.join(output_dir, "training_args.bin"))
+                    torch.save(model.state_dict(), os.path.join(output_dir, "training_args.bin"))
                     logger.info("Saving model checkpoint to %s", output_dir)
-
                     torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                     torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
                     logger.info("Saving optimizer and scheduler states to %s", output_dir)
@@ -255,10 +246,7 @@ def evaluate(args, model, tokenizer, prefix=""):
 
             with torch.no_grad():
                 inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-                if args.model_type != "distilbert":
-                    inputs["token_type_ids"] = (
-                        batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
-                    )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+                inputs["token_type_ids"] = batch[2]
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -513,7 +501,7 @@ def main():
     dataset = 'amzon'  # 数据集
 
     model_name = args.model
-    x = import_module('models.' + model_name)
+    x = import_module('Bert.' + model_name)
     config = x.Config(dataset)
     np.random.seed(1)
     torch.manual_seed(1)
@@ -542,11 +530,10 @@ def main():
         logger.info("Saving model checkpoint to %s", args.output_dir)
         # Save a trained model, configuration and tokenizer using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
-        model_to_save = (
-            model.module if hasattr(model, "module") else model
-        )  # Take care of distributed/parallel training
-        model_to_save.save_pretrained(args.output_dir)
-        config.tokenizer.save_pretrained(args.output_dir)
+
+        output_model_file = os.path.join(args.output_dir, 'pytorch_model.bin')
+        torch.save(model.state_dict(), output_model_file)
+        # config.tokenizer.save_pretrained(args.output_dir)
         # Good practice: save your training arguments together with the trained model
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
         # Load a trained model and vocabulary that you have fine-tuned
