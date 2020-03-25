@@ -33,10 +33,10 @@ class Model(nn.Module):
     def __init__(self, config):
         super(Model, self).__init__()
 
-        self.num_labels = config.num_labels
+        self.num_labels = config.num_classes
         self.bert =  transformers.BertModel.from_pretrained(config.bert_path)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.classifier = nn.Linear(config.hidden_size, config.num_classes)
 
         for param in self.bert.parameters():
             param.requires_grad = True
@@ -60,9 +60,10 @@ class Model(nn.Module):
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
         )
-
+        for o in outputs:
+            print("输出维度：", o.shape)
         pooled_output = outputs[1]
-
+        print("cls 向量的维度：", pooled_output.shape)
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 

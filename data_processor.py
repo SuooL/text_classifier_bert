@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 def convert_examples_to_features(
     examples,
     tokenizer,
-    label_name=None,
     max_length=512,
     label_list=None,
     pad_on_left=False,
@@ -83,9 +82,6 @@ def convert_examples_to_features(
             len(token_type_ids), max_length
         )
 
-
-        if example.label == label_name:
-            continue
         try:
             label = label_map[example.label]
         except KeyError as e:
@@ -172,8 +168,7 @@ class InputExample(object):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
 
-
-class Processor(DataProcessor):
+class Processor():
     """Processor for the CoLA data set (GLUE version)."""
 
     def get_example_from_tensor_dict(self, tensor_dict):
@@ -205,3 +200,8 @@ class Processor(DataProcessor):
             label = line[1]
             examples.append(InputExample(guid=guid, text=text, label=label))
         return examples
+
+    def _read_tsv(cls, input_file, quotechar=None):
+        """Reads a tab separated value file."""
+        with open(input_file, "r", encoding="utf-8-sig") as f:
+            return list(csv.reader(f, delimiter="\t", quotechar=quotechar))[1:]
